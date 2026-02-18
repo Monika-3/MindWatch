@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>YT Watch Tracker</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>📺 Watch Tracker</h1>
+      <p class="date" id="today-date"></p>
+
+      <div class="cards" id="stats-container">
+        <div class="card music">
+          <span class="icon">🎵</span>
+          <span class="label">Music</span>
+          <span class="time" id="music-time">0m</span>
+        </div>
+        <div class="card entertainment">
+          <span class="icon">🎬</span>
+          <span class="label">Entertainment</span>
+          <span class="time" id="entertainment-time">0m</span>
+        </div>
+        <div class="card knowledge">
+          <span class="icon">📚</span>
+          <span class="label">Knowledge</span>
+          <span class="time" id="knowledge-time">0m</span>
+        </div>
+        <div class="card other">
+          <span class="icon">🎯</span>
+          <span class="label">Other</span>
+          <span class="time" id="other-time">0m</span>
+        </div>
+      </div>
+
+      <div class="total">Total today: <strong id="total-time">0m</strong></div>
+
+      <button id="clear-btn">🗑 Clear Today</button>
+    </div>
+    <script src="popup.js"></script>
+  </body>
+</html>
