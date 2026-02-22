@@ -127,7 +127,6 @@ new MutationObserver(() => {
     lastUrl = currentUrl;
     console.log("[YT Tracker] URL changed to:", currentUrl);
     if (currentUrl.includes("/watch")) {
-      // Small delay to let YouTube load the video
       setTimeout(startTracking, 1500);
     } else {
       stopTracking();
