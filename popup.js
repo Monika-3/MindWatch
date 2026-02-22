@@ -9,7 +9,6 @@ function formatTime(seconds) {
 function loadStats() {
   const today = new Date().toISOString().split("T")[0];
   document.getElementById("today-date").textContent = today;
-
   chrome.storage.local.get(["watchData"], (result) => {
     const data = result.watchData || {};
     const todayData = data[today] || {
@@ -18,7 +17,6 @@ function loadStats() {
       knowledge: 0,
       other: 0,
     };
-
     document.getElementById("music-time").textContent = formatTime(
       todayData.music || 0,
     );
@@ -51,3 +49,5 @@ document.getElementById("clear-btn").addEventListener("click", () => {
 });
 
 loadStats();
+const refreshInterval = setInterval(loadStats, 2000);
+window.addEventListener("unload", () => clearInterval(refreshInterval));

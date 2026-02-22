@@ -73,6 +73,38 @@ function stopTracking() {
   }
 }
 
+function isExtensionValid() {
+  try {
+    return !!chrome.runtime?.id;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function sendWithRetry(payload, attempts = 3) {
+  if (!isExtensionValid()) {
+    console.warn("[YT Tracker] Extension context invalid, stopping tracking");
+    stopTracking();
+    return;
+  }
+  try {
+    const response = await chrome.runtime.sendMessage({
+      type: "ADD_TIME",
+      payload,
+    });
+    console.log("[YT Tracker] Message sent ok:", response);
+  } catch (err) {
+    console.warn("[YT Tracker] Message failed:", err.message);
+    if (err.message.includes("Extension context invalidated")) {
+      stopTracking();
+      return;
+    }
+    if (attempts > 1) {
+      setTimeout(() => sendWithRetry(payload, attempts - 1), 500);
+    }
+  }
+}
+
 function startTracking() {
   const videoId = getVideoId();
   if (!videoId) return;
@@ -83,6 +115,11 @@ function startTracking() {
   console.log("[YT Tracker] Started tracking video:", videoId);
 
   trackingInterval = setInterval(() => {
+    if (!isExtensionValid()) {
+      stopTracking();
+      return;
+    }
+
     const video = document.querySelector("video");
     if (!video) {
       console.log("[YT Tracker] No video element found");
@@ -98,28 +135,13 @@ function startTracking() {
         "date:",
         today,
       );
-
-      chrome.runtime.sendMessage(
-        {
-          type: "ADD_TIME",
-          payload: { category, seconds: 5, date: today },
-        },
-        (response) => {
-          if (chrome.runtime.lastError) {
-            console.error(
-              "[YT Tracker] Message error:",
-              chrome.runtime.lastError.message,
-            );
-          }
-        },
-      );
+      sendWithRetry({ category, seconds: 5, date: today });
     } else {
       console.log("[YT Tracker] Video is paused, not counting");
     }
   }, 5000);
 }
 
-// Detect YouTube SPA navigation
 let lastUrl = location.href;
 new MutationObserver(() => {
   const currentUrl = location.href;
@@ -135,7 +157,6 @@ new MutationObserver(() => {
   }
 }).observe(document.body, { subtree: true, childList: true });
 
-// Run on initial load
 console.log("[YT Tracker] Content script loaded on:", location.href);
 if (location.href.includes("/watch")) {
   setTimeout(startTracking, 1500);
