@@ -7,56 +7,23 @@ function detectCategory() {
     "#channel-name a, #owner-name a, yt-formatted-string#owner-name a",
   );
   const channel = channelEl ? channelEl.textContent.toLowerCase() : "";
-
   console.log("[YT Tracker] Title:", title, "| Channel:", channel);
 
   const musicKeywords = [
-    "song",
-    "music",
-    "lyrics",
-    "official audio",
-    "remix",
-    "album",
-    "acoustic",
-    "piano",
-    "guitar",
+    "song", "music", "lyrics", "official audio", "remix", "album", "acoustic", "piano", "guitar",
   ];
   const knowledgeKeywords = [
-    "tutorial",
-    "learn",
-    "course",
-    "how to",
-    "explained",
-    "science",
-    "history",
-    "documentary",
-    "lecture",
-    "programming",
-    "coding",
-    "education",
+    "tutorial", "learn", "course", "how to", "explained", "science", "history",
+    "documentary", "lecture", "programming", "coding", "education",
   ];
   const entertainmentKeywords = [
-    "vlog",
-    "funny",
-    "comedy",
-    "prank",
-    "gaming",
-    "reaction",
-    "meme",
-    "shorts",
-    "trailer",
-    "movie",
-    "series",
+    "vlog", "funny", "comedy", "prank", "gaming", "reaction", "meme", "shorts",
+    "trailer", "movie", "series",
   ];
 
-  if (musicKeywords.some((k) => title.includes(k) || channel.includes(k)))
-    return "music";
-  if (knowledgeKeywords.some((k) => title.includes(k) || channel.includes(k)))
-    return "knowledge";
-  if (
-    entertainmentKeywords.some((k) => title.includes(k) || channel.includes(k))
-  )
-    return "entertainment";
+  if (musicKeywords.some((k) => title.includes(k) || channel.includes(k))) return "music";
+  if (knowledgeKeywords.some((k) => title.includes(k) || channel.includes(k))) return "knowledge";
+  if (entertainmentKeywords.some((k) => title.includes(k) || channel.includes(k))) return "entertainment";
   return "other";
 }
 
@@ -81,30 +48,6 @@ function isExtensionValid() {
   }
 }
 
-async function sendWithRetry(payload, attempts = 3) {
-  if (!isExtensionValid()) {
-    console.warn("[YT Tracker] Extension context invalid, stopping tracking");
-    stopTracking();
-    return;
-  }
-  try {
-    const response = await chrome.runtime.sendMessage({
-      type: "ADD_TIME",
-      payload,
-    });
-    console.log("[YT Tracker] Message sent ok:", response);
-  } catch (err) {
-    console.warn("[YT Tracker] Message failed:", err.message);
-    if (err.message.includes("Extension context invalidated")) {
-      stopTracking();
-      return;
-    }
-    if (attempts > 1) {
-      setTimeout(() => sendWithRetry(payload, attempts - 1), 500);
-    }
-  }
-}
-
 function startTracking() {
   const videoId = getVideoId();
   if (!videoId) return;
@@ -115,7 +58,9 @@ function startTracking() {
   console.log("[YT Tracker] Started tracking video:", videoId);
 
   trackingInterval = setInterval(() => {
+    // Stop gracefully if extension was reloaded/invalidated
     if (!isExtensionValid()) {
+      console.log("[YT Tracker] Extension context invalidated, stopping.");
       stopTracking();
       return;
     }
@@ -129,19 +74,28 @@ function startTracking() {
     if (!video.paused) {
       const category = detectCategory();
       const today = new Date().toISOString().split("T")[0];
-      console.log(
-        "[YT Tracker] Logging 5s to category:",
-        category,
-        "date:",
-        today,
-      );
-      sendWithRetry({ category, seconds: 5, date: today });
+      console.log("[YT Tracker] Logging 5s to category:", category, "date:", today);
+
+      try {
+        chrome.runtime.sendMessage(
+          { type: "ADD_TIME", payload: { category, seconds: 5, date: today } },
+          (response) => {
+            if (chrome.runtime.lastError) {
+              // Suppress noisy "port closed" errors — they're harmless
+            }
+          },
+        );
+      } catch (e) {
+        console.log("[YT Tracker] Could not send message, stopping:", e.message);
+        stopTracking();
+      }
     } else {
       console.log("[YT Tracker] Video is paused, not counting");
     }
   }, 5000);
 }
 
+// Detect YouTube SPA navigation
 let lastUrl = location.href;
 new MutationObserver(() => {
   const currentUrl = location.href;
@@ -157,6 +111,7 @@ new MutationObserver(() => {
   }
 }).observe(document.body, { subtree: true, childList: true });
 
+// Run on initial load
 console.log("[YT Tracker] Content script loaded on:", location.href);
 if (location.href.includes("/watch")) {
   setTimeout(startTracking, 1500);
